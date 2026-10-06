@@ -1,11 +1,14 @@
 [Unit]
-Description=WebSocket proxy for SMTP
+Description=WebSocket proxy for SMTP submission (TLS terminates in the client, Velta wasm core)
 After=network.target
 
 [Service]
 Type=simple
 Restart=always
-ExecStart=/usr/bin/websockify 127.0.0.1:8587 localhost:587
+; Velta C3: the wasm core speaks smtps (implicit TLS) INSIDE the tunnel, so
+; the bridge lands on the TLS submission port (465); the 587 STARTTLS
+; plaintext loopback model of upstream PR #1030 is not used by Velta.
+ExecStart=/usr/bin/websockify 127.0.0.1:8587 localhost:465
 DynamicUser=true
 
 [Install]

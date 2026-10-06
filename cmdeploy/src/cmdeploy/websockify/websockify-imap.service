@@ -1,11 +1,14 @@
 [Unit]
-Description=WebSocket proxy for IMAP
+Description=WebSocket proxy for IMAPS (TLS terminates in the client, Velta wasm core)
 After=network.target
 
 [Service]
 Type=simple
 Restart=always
-ExecStart=/usr/bin/websockify 127.0.0.1:8143 localhost:143
+; Velta C3: the wasm core keeps TLS inside the wasm sandbox, so the tunnel
+; lands on the TLS port (993), not plaintext 143 — the proxy never sees
+; plaintext credentials outside loopback-encrypted legs.
+ExecStart=/usr/bin/websockify 127.0.0.1:8143 localhost:993
 DynamicUser=true
 
 [Install]

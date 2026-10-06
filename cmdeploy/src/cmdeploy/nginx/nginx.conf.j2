@@ -192,6 +192,37 @@ http {
 			proxy_set_header Upgrade $http_upgrade;
 			proxy_set_header Connection "upgrade";
 		}
+
+		# Velta wasm-core bridge scheme (patch 0007): the core dials
+		# {proxy}/tcp/{host}/{port} and resolves via {proxy}/dns/{host}.
+		# Only the TLS mail ports are dialable — the tunnel lands on the
+		# relay's own imaps/submission, TLS terminating in the client; the
+		# {host} part of the path is intentionally ignored.
+		location ~ ^/tcp/[^/]+/993$ {
+			if ($wsmail_origin_ok = 0) { return 403; }
+			limit_conn wsmail_conn 10;
+			proxy_pass http://127.0.0.1:8143;
+			proxy_http_version 1.1;
+			proxy_set_header Upgrade $http_upgrade;
+			proxy_set_header Connection "upgrade";
+		}
+
+		location ~ ^/tcp/[^/]+/465$ {
+			if ($wsmail_origin_ok = 0) { return 403; }
+			limit_conn wsmail_conn 10;
+			proxy_pass http://127.0.0.1:8587;
+			proxy_http_version 1.1;
+			proxy_set_header Upgrade $http_upgrade;
+			proxy_set_header Connection "upgrade";
+		}
+
+		location /dns/ {
+			if ($wsmail_origin_ok = 0) { return 403; }
+			proxy_pass http://127.0.0.1:8153;
+			proxy_http_version 1.1;
+			proxy_set_header Upgrade $http_upgrade;
+			proxy_set_header Connection "upgrade";
+		}
 	}
 
 	# iroh-relay 1.0 line (chatmail/relay#1010). Iroh clients overwrite the
