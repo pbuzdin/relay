@@ -69,6 +69,12 @@ mail_domain = {mail_domain}
 # A single client IP may use up to a fifth of this.
 #max_smtp_connections = 1000
 
+# Browser origins (comma-separated, https only) allowed to open the
+# WebSocket mail tunnels (/imap, /smtp) and to mint accounts cross-origin
+# via /new. Leave empty to serve browser clients from this domain only;
+# native clients are not affected (they send no Origin header).
+#ws_allowed_origins =
+
 # Use externally managed TLS certificates instead of built-in acmetool.
 # Paths refer to files on the deployment server (not the build machine).
 # Both files must already exist before running cmdeploy.

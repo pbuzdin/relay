@@ -56,6 +56,15 @@ class Config:
             params.pop("postfix_reinject_port_incoming", "10026")
         )
         self.doveauth_http_port = int(params.pop("doveauth_http_port", "10084"))
+        # Velta C3: browser origins allowed to open the /imap + /smtp
+        # WebSocket mail tunnels and to mint accounts cross-origin via /new
+        # (CORS). Comma-separated https origins; empty = same-origin only.
+        # Native clients send no Origin header and are always allowed.
+        self.ws_allowed_origins = [
+            origin.strip()
+            for origin in params.pop("ws_allowed_origins", "").split(",")
+            if origin.strip()
+        ]
         self.mtail_address = params.pop("mtail_address", None)
         self.disable_ipv6 = params.pop("disable_ipv6", "false").lower() == "true"
         self.acme_email = params.pop("acme_email", "")
