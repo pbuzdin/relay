@@ -23,3 +23,20 @@ For getting started and more information please refer to the web version of this
 
 [https://chatmail.at/doc/relay](https://chatmail.at/doc/relay)
 
+## Velta relay overlay
+
+This fork tracks upstream and documents the overlay our production relay
+runs on top of stock chatmail: invite-only signup, a WebSocket-to-TCP
+tunnel for browser clients, a dual-line iroh relay, inbound HTTPS
+federation, and a chat-driven admin bot.
+
+- Start at [VELTA-DEPLOY.md](VELTA-DEPLOY.md) — the overlay index,
+  hosting prerequisites, and the deploy checklist.
+- [docs/compare.md](docs/compare.md) — capability table, upstream vs overlay.
+- [docs/invites.md](docs/invites.md) · [docs/ws-proxy.md](docs/ws-proxy.md) ·
+  [docs/admin-bot.md](docs/admin-bot.md) — per-feature deep-dives.
+
+The overlay is hand-applied on the server today; backporting it into the
+`cmdeploy` templates is the tracked TODO. Agents editing this repo: read
+[AGENTS.md](AGENTS.md) first.
+

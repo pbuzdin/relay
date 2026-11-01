@@ -8,6 +8,16 @@ authoritative list of the overlay pieces, why they exist, and how to
 reproduce them on a fresh box. Placeholders: `<relay-domain>`,
 `<relay-ip>` — never deploy real private hostnames into public repos.
 
+## Documentation map
+
+- `docs/compare.md` — capability table: upstream main vs this overlay.
+- `docs/invites.md` — invite-only signup deep-dive (tokens, claim flow,
+  socket-activated account service).
+- `docs/ws-proxy.md` — the WebSocket-to-TCP tunnel for browser clients.
+- `docs/admin-bot.md` — Veltar, the chat-driven relay admin bot.
+- `AGENTS.md` — rules for agents/humans editing this repo (private-
+  identifier sweep, generated-config rule, verification discipline).
+
 ## The pieces
 
 ### 1. C3 WebSocket mail tunnel (browser clients)
@@ -72,10 +82,20 @@ enforced. See `docs/research/https-federation-plan.md` in the velta repo
 for the staged plan, acceptance tests, and the operational findings
 (outbound port 25 + PTR recipe included).
 
-### 5. iroh relay
+### 5. iroh relay — dual-line
 
-The iroh 1.0 relay co-hosts on its own TLS port (3341) — separate server
-block, `location /relay` proxying the local iroh service.
+Two relays behind one TLS front, announced via the metadata annotations:
+
+| Line | Service | Binary | Listen | Announced as |
+|---|---|---|---|---|
+| 0.35 (derp) | `iroh-relay-v0.service` | `iroh-relay` | 127.0.0.1:3342 → nginx `listen 3341 ssl` | `iroh_relay = https://<relay-domain>:3341` — used by current core clients (2.66-class) incl. Delta Chat |
+| 1.0 (`exp/iroh-1`) | `iroh-relay-v1.service` | `iroh-relay-v1` (1.3.0) | own TLS port :3343, certsync timer | `iroh_relay_1 = https://<relay-domain>:3343` — for cores on the iroh 1.x line (upstream PR 8182 lineage) |
+
+Config gotcha: in `chatmail.ini`, a **missing** `iroh_relay` key enables the
+co-hosted default, but a **present-empty** key disables it silently —
+fill both lines with real URLs and restart `chatmail-metadata.service`.
+Legacy units (`iroh-relay.service`, `iroh-relay-1.service`) are disabled
+renames — do not re-enable.
 
 ### 6. www pages
 
@@ -113,6 +133,8 @@ tweaks noted in the velta repo's docs.
 - Backport the overlay (nginx template blocks, ws services as systemd
   units, invite CGI, 403 blocks) into this repo's `cmdeploy` templates so
   a fresh box needs no hand edits.
+- Make the iroh dual-line (v0 + v1) part of the cmdeploy deployers, so the
+  metadata values survive regenerating `chatmail.ini`.
 - Outbound HTTPS-first transport for non-fork peers; Web Push for the
   PWA; UnifiedPush notifier for Android (see velta issue #110 +
   `PLAN-UNIFIEDPUSH.MD`).
