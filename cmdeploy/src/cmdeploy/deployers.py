@@ -329,6 +329,8 @@ class IrohDeployer(Deployer):
         self.enable_iroh_relay = enable_iroh_relay
 
     def install(self):
+        if not self.enable_iroh_relay:
+            return
         (url, sha256sum) = IROH_ARTIFACTS[host.get_fact(facts.server.Arch)]
         self.download_executable(
             url,
