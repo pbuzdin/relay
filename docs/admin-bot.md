@@ -19,6 +19,33 @@ minting (`invites.py`) reuses the same token store and rules as the CLI
 (see [invites.md](invites.md)) — the bot is a second front end, not a second
 source of truth.
 
+## PWA invitation contract
+
+`/pwa invite NAME [r ID] [30d|12h|YYYY-MM-DD] [uses N]` emits a v2
+self-contained Velta onboarding link. Veltar keeps the existing HMAC proxy
+token as the proxy's bearer credential, then signs an Ed25519 envelope
+containing that token, the full proxy URL, approved relay IDs and hostnames,
+the key ID, and exactly the same expiry. The URL contains the encoded payload
+and detached signature; it has no unsigned `r` query parameter and requires no
+public `onboarding.json` registry.
+
+The Velta repository's `scripts/relay-invite/pwa_onboarding.py` is the reference
+signer. The deployment-specific bot should call `mint_pwa_invite()` after
+minting its normal proxy token. With `r ID`, include only that requested relay;
+without it, include the approved candidates for automatic fastest-responsive
+selection. Store the Ed25519 private key with the bot's other private
+configuration, and give the PWA only the corresponding public verification key
+through its `--onboarding-keys` build option.
+
+Base64url encoding is not encryption or authentication. The PWA must verify
+the Ed25519 signature before installing a proxy or trusting a relay hostname.
+Invite recipients can decode the hostnames, and the created account address
+reveals the relay domain. Real hostnames and private keys must never enter
+repository content, tests, documentation, or static PWA configuration.
+
+Legacy bare-HMAC links with an unsigned `r` and same-origin registry remain
+supported for already issued invitations; new bot output should be v2.
+
 ## Configuration
 
 `/opt/veltar/config.json` holds the bot account's credentials and settings.
