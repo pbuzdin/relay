@@ -1,0 +1,19 @@
+[Unit]
+Description=Veltar Delta Chat bot
+After=network-online.target
+Wants=network-online.target
+[Service]
+User=veltar
+Group=veltar
+WorkingDirectory=/opt/veltar
+Environment=PATH=/opt/veltar/venv/bin:/usr/bin:/bin
+ExecStart=/opt/veltar/venv/bin/python /opt/veltar/veltar.py serve
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/opt/veltar
+PrivateTmp=yes
+[Install]
+WantedBy=multi-user.target

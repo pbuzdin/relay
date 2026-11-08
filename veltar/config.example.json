@@ -1,0 +1,26 @@
+{
+ "addr": "filled in by veltar on first start",
+ "owner_contact_id": null,
+ "owner_addr": "filled in when the owner scans the bot's invite",
+ "owner_fingerprint": "OPTIONAL 40-HEX OPENPGP FINGERPRINT TO PIN THE OWNER KEY",
+ "proxy_invites": {
+  "enabled": true,
+  "secret": "/etc/velta-ws-proxy/secret",
+  "revoked": "/etc/velta-ws-proxy/revoked",
+  "log": "/opt/veltar/proxy-invites.tsv",
+  "url": "wss://relay.example.org/vp-CHANGEME"
+ },
+ "relay_invites": {
+  "enabled": true,
+  "store": "/var/lib/velta-invites/invites.json",
+  "domain": "relay.example.org"
+ },
+ "pwa_invites": {
+  "enabled": true,
+  "url": "https://velta.cc/web",
+  "registry": "/etc/velta-ws-proxy/relays.json",
+  "key_path": "/opt/veltar/data/onboarding-ed25519.pem",
+  "key_id": "veltar1",
+  "proxy": "wss://relay.example.org/vp-CHANGEME"
+ }
+}
