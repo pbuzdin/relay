@@ -1,0 +1,4 @@
+deltachat-rpc-client==2.65.0
+deltachat-rpc-server==2.65.0
+cryptography
+segno==1.6.6

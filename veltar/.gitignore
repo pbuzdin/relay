@@ -1,0 +1,16 @@
+# Deployment state and secrets: never commit.
+config.json
+creds.json
+relay_invite.txt
+ai.env
+invite.txt
+inbox.jsonl
+veltar.log
+*.bak*
+*.pem
+*.key
+data/
+outbox/
+spool/
+venv/
+vendor/
