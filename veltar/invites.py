@@ -17,7 +17,7 @@ HELP = """Commands (owner only):
 /relay invite NAME [30d|YYYY-MM-DD] [uses N]      relay signup link + QR
 /relay list
 /relay revoke ID
-/invite NAME [r ID] [30d|12h|YYYY-MM-DD] [uses N]  relay signup + PWA link
+/invite NAME [r ID] [30d|12h|YYYY-MM-DD] [uses N]  signed velta.cc/web link + QR
 /ai                                         keys and which model answers
 /ai grok KEY | /ai glm KEY                  save a Grok (xAI) or z.ai GLM key
 /ai use grok|glm                            answer with that model
@@ -321,20 +321,15 @@ def handle(cmd, cfg, tmpdir, now=None):
     if c == "relay_list": return [("\n".join(RelayInvites(r).list(now)) or "No relay invites.", None)]
     if c == "relay_revoke": RelayInvites(r).revoke(cmd["id"]); return [(f"Revoked relay invite {cmd['id']}.", None)]
     if c == "invite":
-        if not (pon or ron): return [("No invite types are enabled.", None)]
-        if pon and not w.get("enabled"): return off("PWA")
-        # Validate/mint the PWA link before creating the separate relay signup.
-        if pon:
-            pwa = {"url": w["url"], "registry": w["registry"], "relay": cmd.get("relay") or "",
-                   "key_path": w.get("key_path"), "key_id": w.get("key_id"), "proxy": w.get("proxy")}
-            pid, pl = ProxyInvites(p).invite(cmd["name"], cmd["exp"], cmd["uses"], pwa=pwa)
-        out, lines = [], [f"Invite for {cmd['name']} (expires {exp_s(cmd['exp'])}):"]
-        if ron:
-            rid, rl = RelayInvites(r).invite(cmd["name"], cmd["exp"], 1)
-            lines.append(f"1. Create an account (single use, id {rid}):\n{rl}"); out.append(("Relay signup QR", qr(rl, "relay")))
-        if pon:
-            lines.append(f"{2 if ron else 1}. Open Velta in your browser (id {pid}):\n{pl}"); out.append(("PWA QR", qr(pl, "pwa")))
-        return [("\n\n".join(lines), None)] + out
+        # One link only: the signed PWA invite sets up the proxy and creates the account
+        # on a registry relay. Relay-hosted signups stay under /relay invite.
+        if not pon or not w.get("enabled"): return off("PWA")
+        pwa = {"url": w["url"], "registry": w["registry"], "relay": cmd.get("relay") or "",
+               "key_path": w.get("key_path"), "key_id": w.get("key_id"), "proxy": w.get("proxy")}
+        pid, pl = ProxyInvites(p).invite(cmd["name"], cmd["exp"], cmd["uses"], pwa=pwa)
+        return [(f"Invite for {cmd['name']} (id {pid}, expires {exp_s(cmd['exp'])}"
+                 + (f", {cmd['uses']} devices" if cmd["uses"] else "") + f"). Open in a browser or Velta:\n{pl}", None),
+                ("PWA QR", qr(pl, "pwa"))]
     return [("Unknown command. /help", None)]
 
 def _demo():
@@ -396,7 +391,7 @@ def _demo():
         for command, want in (("/invite Ann 1d uses 1", {"one", "nine"}), ("/invite Ann r nine 1d uses 1", {"nine"})):
             replies = handle(parse_command(command), cfg, d)
             text = replies[0][0]
-            assert "https://signup.example.org/i/" in text and "velta://ws" not in text
+            assert "/i/" not in text and "velta://ws" not in text
             assert replies[-1][0] == "PWA QR"
             link = next(line for line in text.splitlines() if line.startswith("https://velta.cc/web?"))
             env = parse_qs(urlsplit(link).query)["invite"][0]; body, sig = env.split(".")

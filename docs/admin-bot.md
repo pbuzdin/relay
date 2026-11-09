@@ -42,7 +42,7 @@ The source is in [`veltar/`](../veltar/) with deploy steps in its README.
 
 | Command | What it does |
 |---|---|
-| `/invite NAME [r ID] [30d\|12h\|YYYY-MM-DD] [uses N]` | One-stop invite: a single-use relay signup link, plus a signed v2 Velta PWA link that sets up the WebSocket proxy. Each comes with a QR code. |
+| `/invite NAME [r ID] [30d\|12h\|YYYY-MM-DD] [uses N]` | One-stop invite: a single signed v2 velta.cc/web link (plus QR) that opens Velta, sets up the WebSocket proxy and creates an account on a relay from the registry. `r ID` pins one relay. For a signup on this relay itself, use `/relay invite`. |
 | `/pwa invite NAME [r ID] [expiry] [uses N]` | Only the signed v2 PWA link and its QR. |
 | `/proxy invite NAME [expiry] [uses N]` | A raw `velta://ws` proxy link and QR for the Velta apps. |
 | `/proxy list` | Lists proxy invites with expiry, device cap and status. |
@@ -61,7 +61,7 @@ Notes:
   (`/etc/velta-ws-proxy/relays.json`). Without it the invite lists every
   approved relay and the PWA picks the fastest one that responds.
 - `uses N` (1 to 1000) caps devices for proxy and PWA invites and uses for
-  relay invites. `/invite` always makes its relay signup single use.
+  relay invites.
 - Expiry is UTC. No expiry means the invite never expires.
 - `/ai` only stores keys and the model choice in `ai.env`. Veltar itself does
   not call any model; a separate agent on the server reads that file and
