@@ -18,6 +18,7 @@ HELP = """Commands (owner only):
 /relay list
 /relay revoke ID
 /invite NAME [r ID] [30d|12h|YYYY-MM-DD] [uses N]  signed velta.cc/web link + QR
+Expiry defaults to 48h when omitted.
 /ai                                         keys and which model answers
 /ai grok KEY | /ai glm KEY                  save a Grok (xAI) or z.ai GLM key
 /ai use grok|glm                            answer with that model
@@ -61,6 +62,7 @@ def parse_expiry(s, now=None):
 
 EXP_RE = re.compile(r"^(\d+[dh]|\d{4}-\d{2}-\d{2})$")
 ID_RE = re.compile(r"^[A-Za-z0-9]{1,64}$")
+DEFAULT_EXPIRY_S = 48 * 3600
 
 def _invite_args(args, now, allow_relay=False):
     exp, uses, words, i, relay = 0, 0, [], 0, ""
@@ -77,6 +79,7 @@ def _invite_args(args, now, allow_relay=False):
     name = "".join(c for c in " ".join(words) if c.isprintable() and c != "\t")[:64].strip()
     if not name: raise CmdError("NAME is required")
     if exp and exp <= now: raise CmdError("expiry is in the past")
+    if not exp: exp = int(now + DEFAULT_EXPIRY_S)
     out = {"name": name, "exp": exp, "uses": uses}
     if allow_relay: out["relay"] = relay
     return out
@@ -183,21 +186,20 @@ class ProxyInvites:
             try: registry = json.load(open(pwa["registry"])).get("relays", {})
             except (OSError, ValueError) as e: raise CmdError(f"cannot read relay registry: {e}")
             if relay not in registry: raise CmdError(f"unknown relay id {relay!r}")
+        if pwa and (not pwa.get("key_path") or not os.path.exists(pwa["key_path"])):
+            raise CmdError("onboarding signing key is missing")
         iid = secrets.token_hex(6); exp = int(exp or 0)
         tok = mint(load_secret(self.c["secret"]), iid, name, exp, uses)
         # same line format as bridge.py --mint: id<TAB>name<TAB>expiry[<TAB>uses]
         with open(self.c["log"], "a") as f:
             fcntl.flock(f, fcntl.LOCK_EX); f.write(f"{iid}\t{name}\t{exp}" + (f"\t{int(uses)}" if uses else "") + "\n")
-        if pwa and pwa.get("key_path") and os.path.exists(pwa["key_path"]):
+        if pwa:
             import pwa_onboarding
             try: registry = json.load(open(pwa["registry"])).get("relays", {})
             except (OSError, ValueError) as e: raise CmdError(f"cannot read relay registry: {e}")
             relays = {relay: registry[relay]} if relay else dict(registry)
             key = pwa_onboarding.load_private_key(pwa["key_path"])
             link = pwa_onboarding.mint_pwa_invite(tok, pwa["proxy"], relays, key, pwa["key_id"], pwa["url"].rstrip("/"))
-        elif pwa:
-            if pwa.get("key_path"): print("veltar: WARNING onboarding key missing, emitting v1 PWA link", file=sys.stderr, flush=True)
-            link = pwa["url"].rstrip("/") + "?invite=" + quote(tok, safe="") + (f"&r={quote(relay, safe='')}" if relay else "")
         else:
             link = "velta://ws?u=" + quote(self.c["url"], safe="") + ("&n=" + quote(name, safe="") if name else "") + "&t=" + tok
         return iid, link
@@ -338,6 +340,7 @@ def _demo():
     try:
         assert parse_command("hello") is None
         assert parse_command("/help")["cmd"] == "help"
+        assert parse_command("/invite Ada", now=1_700_000_000)["exp"] == 1_700_000_000 + DEFAULT_EXPIRY_S
         assert parse_command("/proxy list")["cmd"] == "proxy_list"
         assert parse_command("/relay revoke abcdef")["id"] == "abcdef"
         assert redact("/ai grok " + secret) == "/ai grok REDACTED"
@@ -363,11 +366,12 @@ def _demo():
         key_path = d + "/proxy-secret"; open(key_path, "wb").write(b"x" * 32)
         registry = d + "/relays.json"; json.dump({"v": 1, "relays": {"one": "one.example.org"}}, open(registry, "w"))
         cmd = parse_command("/pwa invite Ann r one 12h uses 1", now=0)
-        assert cmd["relay"] == "one" and cmd["uses"] == 1
+        assert cmd["relay"] == "one" and cmd["uses"] == 1 and cmd["exp"] == 12 * 3600
         pc = {"secret": key_path, "log": d + "/invites.tsv"}
-        iid, link = ProxyInvites(pc).invite(cmd["name"], cmd["exp"], cmd["uses"], pwa={"url": "https://velta.cc/web", "registry": registry, "relay": cmd["relay"]})
-        assert link.startswith("https://velta.cc/web?invite=") and link.endswith("&r=one")
-        assert "invite=REDACTED" in redact(link) and iid in open(pc["log"]).read()
+        try:
+            ProxyInvites(pc).invite(cmd["name"], cmd["exp"], cmd["uses"], pwa={"url": "https://velta.cc/web", "registry": registry, "relay": cmd["relay"]})
+            raise AssertionError("unsigned pwa invite")
+        except CmdError: pass
         # v2 signed
         import pwa_onboarding
         from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -384,6 +388,7 @@ def _demo():
             raw = pwa_onboarding.b64url_decode(body); k.public_key().verify(pwa_onboarding.b64url_decode(sig), raw)
             pl = json.loads(raw); tokp = json.loads(pwa_onboarding.b64url_decode(pl["t"].split(".")[0]))
             assert pl["v"] == 2 and pl["k"] == "test1" and set(pl["r"]) == want and pl["e"] == tokp["e"] == 1900000000
+            assert "invite=REDACTED" in redact(link)
         cfg["proxy_invites"] = {**pc, "enabled": True, "url": v2["proxy"]}
         cfg["pwa_invites"] = {**v2, "enabled": True}
         store = d + "/relay-invites.json"; json.dump({"invites": {}}, open(store, "w"))
@@ -403,8 +408,10 @@ def _demo():
         cfg["pwa_invites"]["enabled"] = True
         try: ProxyInvites(pc).invite("Ann", pwa={**v2, "relay": "nope"}); raise AssertionError("unknown relay")
         except CmdError: pass
-        iid, link = ProxyInvites(pc).invite("Ann", pwa={**v2, "key_path": d + "/missing", "relay": "one"})
-        assert link.endswith("&r=one")
+        try:
+            ProxyInvites(pc).invite("Ann", pwa={**v2, "key_path": d + "/missing", "relay": "one"})
+            raise AssertionError("missing key minted a link")
+        except CmdError: pass
         print("ok")
     finally:
         shutil.rmtree(d)

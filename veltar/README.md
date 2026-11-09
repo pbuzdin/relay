@@ -35,5 +35,8 @@ On first start Veltar writes its own invite to `/opt/veltar/invite.txt`.
 The first person who scans it becomes the owner. Pass the printed public key
 to the Velta PWA build with `--onboarding-keys`.
 
+An omitted invite expiry is 48 hours. `/invite` and `/pwa invite` refuse to
+mint when the Ed25519 key file is missing.
+
 Never commit `config.json`, `creds.json`, `ai.env`, `data/` or the signing
 key. The `.gitignore` here already excludes them.

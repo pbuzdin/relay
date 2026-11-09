@@ -31,7 +31,7 @@ returns the link.
 ## Token shape
 
 - `uses` — how many accounts the token can create (1 for personal).
-- `days` — validity window from minting.
+- `days` — validity window from minting. Omitted days is 2 (48 hours); `0` does not expire.
 - The token itself is the secret: treat links like passwords. They appear
   nowhere in logs, docs, or this repository.
 

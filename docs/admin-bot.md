@@ -62,7 +62,7 @@ Notes:
   approved relay and the PWA picks the fastest one that responds.
 - `uses N` (1 to 1000) caps devices for proxy and PWA invites and uses for
   relay invites.
-- Expiry is UTC. No expiry means the invite never expires.
+- Expiry is UTC. Omitting it lasts 48 hours. Pass `30d`, `12h`, or `YYYY-MM-DD` to override.
 - `/ai` only stores keys and the model choice in `ai.env`. Veltar itself does
   not call any model; a separate agent on the server reads that file and
   answers through `veltar send`.
@@ -91,8 +91,9 @@ Invite recipients can decode the hostnames, and the created account address
 reveals the relay domain. Real hostnames and private keys must never enter
 repository content, tests, documentation, or static PWA configuration.
 
-Legacy bare-HMAC links with an unsigned `r` and same-origin registry remain
-supported for already issued invitations; new bot output should be v2.
+A missing Ed25519 key refuses `/invite` and `/pwa invite`. The bot does not
+fall back to an unsigned link. Legacy bare-HMAC links with an unsigned `r`
+and same-origin registry remain supported for invitations already issued.
 
 ## Configuration
 
