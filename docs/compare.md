@@ -7,11 +7,11 @@ cmdeploy templates (see the backlog in `VELTA-DEPLOY.md`).
 
 | Capability | Upstream chatmail main | Velta overlay | Docs |
 |---|---|---|---|
-| Account creation | Open signup via `/new`, rate-limited | **Invite-only**: tokens with uses/expiry, claim endpoint, socket-activated `mkaccount` service (no always-on privileged listener) | [invites.md](invites.md) |
+| Account creation | Open signup via `/new`, rate-limited | **Invite-only**: tokens with uses/expiry (omitted = 48 h, `0` = never), claim endpoint, socket-activated `mkaccount` service (no always-on privileged listener). Invites are **signed PWA links** (`velta.cc/web#…`) — unsigned links are refused | [invites.md](invites.md) |
 | Signup gating | None (self-service) | Closed; accounts minted only through a valid token | [invites.md](invites.md) |
 | WebSocket mail tunnel | None | **C3 tunnel**: WS-to-TCP bridges for IMAP/SMTP plus generic `/tcp/{host}/{port}` and `/dns` resolvers, origin allowlist for browsers | [ws-proxy.md](ws-proxy.md) |
 | Browser/PWA hosting | None | Static PWA + assets under the relay origin, same-origin WS endpoints | VELTA-DEPLOY.md §3 |
-| filtermail | Outgoing spam filter | Outgoing + **incoming** + **transport** split as three services | VELTA-DEPLOY.md §4 |
+| filtermail | Outgoing spam filter (0.7.8) | Outgoing + **incoming** + **transport** split as three services | VELTA-DEPLOY.md §4 |
 | Inbound HTTPS federation | None | `mxdeliv` receiver: DKIM-aligned, E2EE-enforced, envelope auth headers | VELTA-DEPLOY.md §4 |
 | iroh relay | Optional single 0.35 relay | **Dual-line**: 0.35 (derp) for current core clients incl. Delta Chat, 1.3.0 `exp/iroh-1` for the iroh 1.x future; both advertised via `irohrelay` / `irohrelay1` metadata | VELTA-DEPLOY.md §5 |
 | TURN / calls | coturn deployment + metadata | Same, wired into the metadata annotations | upstream |
@@ -26,3 +26,4 @@ cmdeploy templates (see the backlog in `VELTA-DEPLOY.md`).
 - **Overlay**: `cmdeploy run` first, then the overlay steps in
   `VELTA-DEPLOY.md` (§ order matters: DNS, TLS, mail path, then services).
   Each deep-dive doc lists its own restarts and verification curls.
+**Fork base**: chatmail/relay main, last merged 2026-11-17 (PR #3 — filtermail 0.7.8); re-run the overlay steps after any upstream merge.
