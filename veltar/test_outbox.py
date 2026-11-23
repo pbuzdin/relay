@@ -51,6 +51,7 @@ class OutboxTest(unittest.TestCase):
         self.send("with pic", src)
         ((text, sent_file),) = self.acc.sent
         self.assertEqual(text, "with pic"); self.assertTrue(sent_file.startswith(veltar.SPOOL + "/out-"))
+        self.assertEqual(os.path.basename(sent_file), "shot.png")  # the attachment is named exactly as the caller named it
         self.assertFalse(os.path.exists(sent_file))  # our copy goes once core has it
         self.assertTrue(os.path.exists(src)); self.assertEqual(os.listdir(veltar.SPOOL), [])
 

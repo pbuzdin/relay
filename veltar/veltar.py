@@ -53,8 +53,9 @@ def outbox_loop(acc):
                 log("sent to owner", n)
             except Exception as e: log("send error", n, repr(e)); os.replace(p, os.path.join(FAILED, n)); continue  # kept, never dropped
             os.remove(p)
-            if (job.get("file") or "").startswith(SPOOL + "/out-"):
-                try: os.remove(job["file"])  # our copy; core copied it into its blobdir
+            d = (job.get("file") or "").rsplit("/", 1)[0]  # the copy dir send() made: out-<id>/ under SPOOL
+            if d.startswith(SPOOL + "/out-"):
+                try: shutil.rmtree(d)  # core copied the file into its blobdir
                 except OSError: pass
         time.sleep(1)
 
@@ -119,10 +120,10 @@ def maybe_command(acc, s, owner):
 def send(text, file):
     if not load_cfg().get("owner_contact_id"): sys.exit("error: no owner set yet (nobody joined via invite)")
     if not (text or "").strip() and not file: sys.exit("error: empty message, nothing sent")
-    if file:  # our own copy: the caller may delete its file as soon as we return
+    if file:  # our own copy under its own name (core names the attachment after it): the caller may delete its file as soon as we return
         file = os.path.abspath(file); assert os.path.exists(file), "file missing"
-        os.makedirs(SPOOL, exist_ok=True); keep = f"{SPOOL}/out-{uuid.uuid4().hex}"
-        shutil.copy(file, keep); os.chmod(keep, 0o644); file = keep
+        keep = f"{SPOOL}/out-{uuid.uuid4().hex}"; os.makedirs(keep)  # a dir per job, so the name stays exactly the caller's
+        keep = f"{keep}/{os.path.basename(file)}"; shutil.copy(file, keep); os.chmod(keep, 0o644); file = keep
     n = f"{time.time():.6f}-{uuid.uuid4().hex[:6]}"; p = os.path.join(OUTBOX, n)
     json.dump({"text": text, "file": file}, open(p + ".tmp", "w")); os.replace(p + ".tmp", p + ".json")
     for _ in range(300):  # the daemon polls once a second
