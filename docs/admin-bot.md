@@ -8,7 +8,7 @@ messages — from any admin's phone, no SSH.
 
 ```text
 veltar serve            # run the bot (systemd unit: veltar.service)
-veltar send TEXT [--file PATH]   # queue a message to the owner (use - for stdin)
+veltar send TEXT [--file PATH]   # send a message to the owner (use - for stdin); non-zero exit if it failed
 veltar inbox [--since TS] [--all]  # dump recent inbound messages as JSON lines
 veltar status           # print the bot's config (contains secrets; root only)
 ```
@@ -36,7 +36,12 @@ The source is in [`veltar/`](../veltar/) with deploy steps in its README.
 - Every inbound message is recorded in `inbox.jsonl` with invite secrets and
   API keys redacted. Agents on the server read it with `veltar inbox`.
 - `veltar send` lets server-side tools and agents message the owner (and only
-  the owner) through an outbox the daemon drains every second.
+  the owner) through an outbox the daemon drains every second. It returns once
+  the message is sent. A failed send exits non-zero and its job is kept in
+  `outbox/failed/`, never dropped. If the daemon has not picked the job up
+  within 30 seconds it exits non-zero as well, and the job still goes out once
+  the daemon runs. An attachment is copied into `spool/` first, so the caller
+  may delete its own file right away.
 
 ### Chat commands
 

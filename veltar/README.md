@@ -9,6 +9,8 @@ for what it can do and how it is secured.
 - `veltar.py`: the daemon and its CLI (`serve`, `send`, `inbox`, `status`).
 - `invites.py`: command parsing and invite logic, with no Delta Chat imports.
   Run `python invites.py` for its self-test.
+- `test_outbox.py`: the outbox contract (a failed send is kept, an attachment
+  is the bot's own copy). Run `python test_outbox.py`.
 - `pwa_onboarding.py`: signs v2 Velta PWA invites (Ed25519). It also works
   as a CLI: `keygen`, `public`, `mint`.
 - `config.example.json`: copy to `config.json` and fill in your values.
