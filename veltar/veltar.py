@@ -1,12 +1,12 @@
 #!/opt/veltar/venv/bin/python
 """Veltar: Delta Chat bot that lets agents message the owner only."""
-import argparse, json, os, sys, time, threading, uuid
+import argparse, json, os, shutil, sys, time, threading, uuid
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import invites
 from deltachat_rpc_client import DeltaChat, Rpc
 from deltachat_rpc_client.const import EventType
 BASE = os.environ.get("VELTAR_HOME", "/opt/veltar"); DATA = f"{BASE}/data"; CFG = f"{BASE}/config.json"
-INBOX = f"{BASE}/inbox.jsonl"; OUTBOX = f"{BASE}/outbox"; LOG = f"{BASE}/veltar.log"
+INBOX = f"{BASE}/inbox.jsonl"; OUTBOX = f"{BASE}/outbox"; FAILED = f"{OUTBOX}/failed"; SPOOL = f"{BASE}/spool"; LOG = f"{BASE}/veltar.log"
 # Signup QR for the bot's own account, e.g. "dcaccount:https://relay.example.org/new".
 RELAY_QR = open(f"{BASE}/relay_invite.txt").read().strip() if os.path.exists(f"{BASE}/relay_invite.txt") else ""
 
@@ -40,19 +40,22 @@ def setup(acc):
     return qr
 
 def outbox_loop(acc):
+    os.makedirs(FAILED, exist_ok=True)
     while True:
         for n in sorted(os.listdir(OUTBOX)):
             if not n.endswith(".json"): continue
             p = os.path.join(OUTBOX, n)
             try:
                 job = json.load(open(p)); owner = load_cfg().get("owner_contact_id")
-                if not owner: log("drop: no owner", n)
-                else:
-                    chat = acc.get_contact_by_id(owner).create_chat()
-                    chat.send_message(text=job.get("text") or None, file=job.get("file"))
-                    log("sent to owner", n)
-            except Exception as e: log("send error", n, repr(e))
+                if not owner: raise RuntimeError("no owner")
+                chat = acc.get_contact_by_id(owner).create_chat()
+                chat.send_message(text=job.get("text") or None, file=job.get("file"))
+                log("sent to owner", n)
+            except Exception as e: log("send error", n, repr(e)); os.replace(p, os.path.join(FAILED, n)); continue  # kept, never dropped
             os.remove(p)
+            if (job.get("file") or "").startswith(SPOOL + "/out-"):
+                try: os.remove(job["file"])  # our copy; core copied it into its blobdir
+                except OSError: pass
         time.sleep(1)
 
 def serve():
@@ -115,10 +118,19 @@ def maybe_command(acc, s, owner):
 
 def send(text, file):
     if not load_cfg().get("owner_contact_id"): sys.exit("error: no owner set yet (nobody joined via invite)")
-    if file: file = os.path.abspath(file); assert os.path.exists(file), "file missing"
-    p = os.path.join(OUTBOX, f"{time.time():.6f}-{uuid.uuid4().hex[:6]}")
+    if not (text or "").strip() and not file: sys.exit("error: empty message, nothing sent")
+    if file:  # our own copy: the caller may delete its file as soon as we return
+        file = os.path.abspath(file); assert os.path.exists(file), "file missing"
+        os.makedirs(SPOOL, exist_ok=True); keep = f"{SPOOL}/out-{uuid.uuid4().hex}"
+        shutil.copy(file, keep); os.chmod(keep, 0o644); file = keep
+    n = f"{time.time():.6f}-{uuid.uuid4().hex[:6]}"; p = os.path.join(OUTBOX, n)
     json.dump({"text": text, "file": file}, open(p + ".tmp", "w")); os.replace(p + ".tmp", p + ".json")
-    print("queued (daemon delivers to owner within ~1s)")
+    for _ in range(300):  # the daemon polls once a second
+        if not os.path.exists(p + ".json"): break
+        time.sleep(0.1)
+    if os.path.exists(os.path.join(FAILED, n + ".json")): sys.exit(f"error: not sent, job kept in {FAILED}/{n}.json (see {LOG})")
+    if os.path.exists(p + ".json"): sys.exit(f"error: still queued after 30 s; it goes out once the daemon runs ({p}.json)")
+    print("sent to owner")
 
 def inbox(since, all_):
     if not os.path.exists(INBOX): return
